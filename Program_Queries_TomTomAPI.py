@@ -26,7 +26,7 @@ os.getcwd
 # Import the input data (in .parquet format)
 gdf = gpd.read_parquet(path_to_input_data)
 
-# Constituons N itinéaires avec un nombre "size" de noeuds
+# Let's randomly generate the routes and waypoints
 def generate_random_nodes(gdf, random_seed, N, size):
     start_time = time.time()
     RNG = np.random.default_rng(random_seed)
@@ -41,7 +41,7 @@ def generate_random_nodes(gdf, random_seed, N, size):
 
 nodes, coordinates = generate_random_nodes(gdf=gdf, random_seed=13081996, N=N_route, size=N_waypoint)
 
-# Via les reqêtes à l' API routing de TomTom, recupérons les informations sur les itinéaires constitués 
+# Through requests to the TomTom Routing API, let's retrieve information about the generated routes
 def make_tomtom_request(url, session, params):
     start_time = time.time()
     try:
