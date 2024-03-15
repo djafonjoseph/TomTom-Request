@@ -2,7 +2,7 @@
  A brief program to retrieve information from TomTom Routing API for given Origin-Destination
 ## Contents
 * [Description](#Description)
-* [Utilisation](#Utilization) 
+* [Utilization](#Utilization) 
 * [Auteurs](#Authors) 
 
 ## Description
