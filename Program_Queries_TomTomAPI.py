@@ -59,6 +59,7 @@ def process_batch(url_base, params, key, nodes, coordinates_batch, session):
     batch_results = []
     batch_tomtom_time = 0
     with tqdm(total=len(coordinates_batch), desc="Processing") as pbar:
+        route_index = 0
         for points in coordinates_batch:
             
             url = f"{url_base}{':'.join([f'{lat},{lon}' for lat, lon in zip(points[1::2], points[::2])])}/json?key={key}"
@@ -66,13 +67,13 @@ def process_batch(url_base, params, key, nodes, coordinates_batch, session):
             data = make_tomtom_request(url, session, params)
             iteration_tomtom_time = time.time() - start_tomtom_time            
             batch_tomtom_time += iteration_tomtom_time
-                       
+            
             if data and "routes" in data:
-                for route_index, route in enumerate(data["routes"]):
-                    nodes_index = route_index
+                routes = data["routes"] 
+                for route in routes:                    
                     for leg_index, leg in enumerate(route['legs']):
-                        source_index = nodes_index + leg_index
-                        target_index = nodes_index + leg_index + 1
+                        source_index = leg_index
+                        target_index = leg_index + 1
                         geom = LineString([[p["longitude"], p["latitude"]] for p in leg["points"]])
                         res = {
                             "source": nodes[route_index][source_index],
@@ -84,6 +85,7 @@ def process_batch(url_base, params, key, nodes, coordinates_batch, session):
                             "geometry": geom,
                         }
                         batch_results.append(res)           
+                    route_index += 1 
             else:
                 pass
             pbar.update(1)
