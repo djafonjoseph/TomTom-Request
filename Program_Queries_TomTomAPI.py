@@ -1,12 +1,4 @@
 
-# Instructions from the users
-path_to_input_data = str(input(r"Paste path to your input dataset which must be in .parquet format (example C:\Users\..\..\imput_data.parquet): "))
-path_to_out_dir = str(input(r"Paste the path to directory where the program will store the outputs (example C:\Users\..\..\tomtom_work: "))
-N_route = int(input("Specify the number of routes you want to retrieve information (2000 for example but must be <= 2400): "))
-N_waypoint = int(input("Specify the number of waypoints you want (150 for example but must <= 150: "))
-batch_size = int(input("Specify the number of route in each output (for example for batch_size = 200 and N=2000, you will have 12 outputs with 200 routes in each output: "))
-put_tomtom_key = str(input("Specify your API key (for example cykhzugopuybe.. <= 150): "))
-
 # Import packages
 import os
 import time
@@ -18,6 +10,14 @@ import pyarrow.parquet as pq
 import numpy as np
 import geopandas as gpd
 from shapely.geometry import LineString
+
+## Put required arguments
+path_to_input_data = r"Paste path to your input dataset which must be in .parquet format (example C:\Users\..\..\imput_data.parquet)"
+path_to_out_dir = r"Paste the path to directory where the program will store the outputs (example C:\Users\..\..\tomtom_work)"
+N_route = "Specify the number of routes you want to retrieve information (2000 for example but must be <= 2400)"
+N_waypoint = "Specify the number of waypoints you want (150 for example but must <= 150)"
+batch_size = "Specify the number of route in each output (for example for batch_size = 200 and N=2000, you will have 12 outputs with 200 routes in each output)"
+put_tomtom_key = "Specify your API key (for example cykhzugopuybe.. <= 150)"
 
 # Define path to the directory where to store the outputs
 os.chdir(path_to_out_dir)
@@ -55,13 +55,13 @@ def make_tomtom_request(url, session, params):
         return None
 
 
-def process_batch(url_base, params, key, nodes, coordinates_batch, session):
+def process_batch(url_base, params, key, nodes, coordinates_batch, session, start_route_index, start_id):
     batch_results = []
     batch_tomtom_time = 0
+    route_index = start_route_index
+    id_counter = start_id  
     with tqdm(total=len(coordinates_batch), desc="Processing") as pbar:
-        route_index = 0
         for points in coordinates_batch:
-            
             url = f"{url_base}{':'.join([f'{lat},{lon}' for lat, lon in zip(points[1::2], points[::2])])}/json?key={key}"
             start_tomtom_time = time.time()
             data = make_tomtom_request(url, session, params)
@@ -76,6 +76,7 @@ def process_batch(url_base, params, key, nodes, coordinates_batch, session):
                         target_index = leg_index + 1
                         geom = LineString([[p["longitude"], p["latitude"]] for p in leg["points"]])
                         res = {
+                            "id": id_counter, 
                             "source": nodes[route_index][source_index],
                             "target": nodes[route_index][target_index],                  
                             "length": leg["summary"]["lengthInMeters"],
@@ -84,18 +85,18 @@ def process_batch(url_base, params, key, nodes, coordinates_batch, session):
                             "tt_historical": leg["summary"]["historicTrafficTravelTimeInSeconds"],
                             "geometry": geom,
                         }
-                        batch_results.append(res)           
+                        batch_results.append(res)
+                        id_counter += 1             
                     route_index += 1 
             else:
                 pass
             pbar.update(1)
-    return batch_results, batch_tomtom_time
+    return batch_results, batch_tomtom_time, route_index, id_counter  
 
 
 def get_tomtom_data(url_base, params, key, nodes, coordinates, batch_size, max_retries=2):
     error_count = 0
     od_error = {}
-    
     session = requests.Session()
     retries = Retry(total=max_retries, backoff_factor=0.)
     session.mount('https://', HTTPAdapter(max_retries=retries))
@@ -104,18 +105,19 @@ def get_tomtom_data(url_base, params, key, nodes, coordinates, batch_size, max_r
     total_batches = total_iterations // batch_size + (1 if total_iterations % batch_size != 0 else 0)
     start_total_time = time.time()
 
+    start_route_index = 0
+    start_id = 0 
     for i in range(total_batches):
         start_index = i * batch_size
         end_index = min((i + 1) * batch_size, total_iterations)
         coordinates_batch = coordinates[start_index:end_index]
         
-        batch_results, batch_tomtom_time = process_batch(url_base, params, key, nodes, coordinates_batch, session)
+        batch_results, batch_tomtom_time, start_route_index, start_id = process_batch(url_base, params, key, nodes, coordinates_batch, session, start_route_index, start_id)
         gdf = gpd.GeoDataFrame(batch_results)
         gdf.to_parquet(f'batch_results_{i}.parquet', index=False)
-        print("Time just for tomtom request:", batch_tomtom_time)
+        print("Time just for tomtom request in min:", batch_tomtom_time/60)
         yield 
         
-
     end_total_time = time.time()
     total_code_time = end_total_time - start_total_time
 
