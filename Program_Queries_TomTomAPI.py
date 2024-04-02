@@ -114,6 +114,7 @@ def get_tomtom_data(url_base, params, key, nodes, coordinates, batch_size, max_r
         
         batch_results, batch_tomtom_time, start_route_index, start_id = process_batch(url_base, params, key, nodes, coordinates_batch, session, start_route_index, start_id)
         gdf = gpd.GeoDataFrame(batch_results)
+        gdf.crs = 'epsg:4326'
         gdf.to_parquet(f'batch_results_{i}.parquet', index=False)
         print("Time just for tomtom request in min:", batch_tomtom_time/60)
         yield 
