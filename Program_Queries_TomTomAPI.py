@@ -59,7 +59,7 @@ def process_batch(url_base, params, key, nodes, coordinates_batch, session, star
     batch_results = []
     batch_tomtom_time = 0
     route_index = start_route_index
-    id_counter = start_id  
+    id_counter = start_id  # Initialize id_counter with the value passed
     with tqdm(total=len(coordinates_batch), desc="Processing") as pbar:
         for points in coordinates_batch:
             url = f"{url_base}{':'.join([f'{lat},{lon}' for lat, lon in zip(points[1::2], points[::2])])}/json?key={key}"
@@ -76,7 +76,7 @@ def process_batch(url_base, params, key, nodes, coordinates_batch, session, star
                         target_index = leg_index + 1
                         geom = LineString([[p["longitude"], p["latitude"]] for p in leg["points"]])
                         res = {
-                            "id": id_counter, 
+                            "id": id_counter,  # Assign id_counter value
                             "source": nodes[route_index][source_index],
                             "target": nodes[route_index][target_index],                  
                             "length": leg["summary"]["lengthInMeters"],
@@ -86,12 +86,13 @@ def process_batch(url_base, params, key, nodes, coordinates_batch, session, star
                             "geometry": geom,
                         }
                         batch_results.append(res)
-                        id_counter += 1             
-                    route_index += 1 
+                        id_counter += 1  # Increment id_counter           
+                    
             else:
                 pass
+            route_index += 1 
             pbar.update(1)
-    return batch_results, batch_tomtom_time, route_index, id_counter  
+    return batch_results, batch_tomtom_time, route_index, id_counter  # Return route_index and id_counter
 
 
 def get_tomtom_data(url_base, params, key, nodes, coordinates, batch_size, max_retries=2):
